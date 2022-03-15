@@ -38,7 +38,7 @@ npm run test
 
 ## Function declaration
 public functions that are never called by the contract should be declared external to save gas.
-Functions: ShortOTokenActionWithSwap.sol / closePositions()
+<br/>Functions: ShortOTokenActionWithSwap.sol / closePositions()
 
 ## Length of array in a loop
 The length of an array should not be declared in a for-loop header
