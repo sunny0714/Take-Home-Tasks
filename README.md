@@ -42,12 +42,12 @@ public functions that are never called by the contract should be declared extern
 
 ## Length of array in a loop
 The length of an array should not be declared in a for-loop header
-OpynPerpVault.sol / setActions(), totalStakedaoAsset(), closePositions(), rollOver()
+<br/>OpynPerpVault.sol / setActions(), totalStakedaoAsset(), closePositions(), rollOver()
 
 ## Add Immutable State Variables
 Token addresses such as  `ecrv`, `weth` should be defined as Immutable
-OpynPerpVault.sol / line 81
-ShortOTokenActionWithSwap.sol / line 54, 57
+<br/>OpynPerpVault.sol / line 81
+<br/>ShortOTokenActionWithSwap.sol / line 54, 57
 
 ## Version Upgrade
 Starting from solidity version 0.8.0, arithmetic operations revert on underflow and overflow. So there’s no more need to use Safemath library.
