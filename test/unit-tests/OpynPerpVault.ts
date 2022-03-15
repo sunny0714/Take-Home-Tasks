@@ -44,21 +44,21 @@ describe('OpynPerpVault Tests', function () {
   this.beforeAll('Deploy Mock contracts', async () => {
     const MockWETHContract = await ethers.getContractFactory('MockWETH');
     weth = (await MockWETHContract.deploy()) as MockWETH;
-    await weth.init('WETH', 'WETH', 18);
+    await weth.init('WETH', 'WETH');
 
     const ERC20 = await ethers.getContractFactory('MockERC20');
     usdc = (await ERC20.deploy()) as MockERC20;
-    await usdc.init('USDC', 'USDC', 6);
+    await usdc.init('USDC', 'USDC');
 
     ecrv = (await ERC20.deploy()) as MockERC20;
-    await ecrv.init('ecrv', 'ecrv', 18);
+    await ecrv.init('ecrv', 'ecrv');
 
     const Curve = await ethers.getContractFactory('MockCurve');
     curve = (await Curve.deploy(ecrv.address)) as MockCurve;
 
     const StakeDao = await ethers.getContractFactory('MockStakedao');
     sdecrv = (await StakeDao.deploy()) as MockStakedao;
-    await sdecrv.init('ecrv', 'ecrv', 18, ecrv.address);
+    await sdecrv.init('ecrv', 'ecrv', ecrv.address);
   });
 
   this.beforeAll('Deploy vault and mock actions', async () => {
