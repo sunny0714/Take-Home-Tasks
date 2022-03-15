@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.2;
+pragma solidity >=0.8.0;
 pragma experimental ABIEncoderV2;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
-import { SafeMath } from '@openzeppelin/contracts/math/SafeMath.sol';
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
+import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import { IAction } from '../interfaces/IAction.sol';
 import { ICurve } from '../interfaces/ICurve.sol';
@@ -48,7 +47,6 @@ import { IStakeDao } from '../interfaces/IStakeDao.sol';
 
 contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
   using SafeERC20 for IERC20;
-  using SafeMath for uint256;
 
   enum VaultState {
     Emergency,
@@ -80,7 +78,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
   ICurve public curvePool;
 
   /// @dev ecrv lp token that is received from depositng into the curve pool
-  IERC20 ecrv;
+  IERC20 immutable ecrv;
 
   /// @dev sdecrv 
   IStakeDao sdecrv;
@@ -140,10 +138,11 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
   }
 
   function setActions(address[] memory _actions) external onlyOwner {
-    require(actions.length == 0, "O3");
+    uint256 actionsLength = _actions.length;
+    require(actionsLength == 0, "O3");
 
     // assign actions
-    for(uint256 i = 0 ; i < _actions.length; i++ ) {
+    for(uint256 i = 0 ; i < actionsLength; i++ ) {
       // check all items before actions[i], does not equal to action[i]
       require(_actions[i] != address(0), "O4");
 
@@ -169,12 +168,12 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    */
   function totalStakedaoAsset() public view returns (uint256) {
     uint256 debt = 0;
-
-    for (uint256 i = 0; i < actions.length; i++) {
-      debt = debt.add(IAction(actions[i]).currentValue());
+    uint256 length = actions.length;
+    for (uint256 i = 0; i < length; i++) {
+      debt = debt + IAction(actions[i]).currentValue();
     }
 
-    return _balance().add(debt);
+    return _balance() + debt;
   }
 
   /**
@@ -182,7 +181,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    */
   function totalETHControlled() external view returns (uint256) { 
     // hard coded to 36 because ecrv and sdecrv are both 18 decimals. 
-    return totalStakedaoAsset().mul(sdecrv.getPricePerFullShare()).mul(curvePool.get_virtual_price()).div(10**36);
+    return totalStakedaoAsset() * sdecrv.getPricePerFullShare() * curvePool.get_virtual_price() / 10**36;
   }
 
   /**
@@ -190,7 +189,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    */
   function getWithdrawAmountByShares(uint256 _shares) external view returns (uint256) {
     uint256 withdrawAmount = _getWithdrawAmountByShares(_shares);
-    return withdrawAmount.sub(_getWithdrawFee(withdrawAmount));
+    return withdrawAmount - _getWithdrawFee(withdrawAmount);
   }
 
   /**
@@ -223,7 +222,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
     // mint shares and emit event 
     uint256 totalWithDepositedAmount = totalStakedaoAsset();
     require(totalWithDepositedAmount < cap, 'O7');
-    uint256 sdecrvDeposited = totalWithDepositedAmount.sub(totalSdecrvBalanceBeforeDeposit);
+    uint256 sdecrvDeposited = totalWithDepositedAmount - totalSdecrvBalanceBeforeDeposit;
     uint256 share = _getSharesByDepositAmount(sdecrvDeposited, totalSdecrvBalanceBeforeDeposit);
 
     emit Deposit(msg.sender, msg.value, share);
@@ -252,7 +251,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
 
     // calculate fees
     uint256 fee = _getWithdrawFee(ethReceived);
-    uint256 ethOwedToUser = ethReceived.sub(fee);
+    uint256 ethOwedToUser = ethReceived - fee;
 
     // send fee to recipient 
     (bool success1, ) = feeRecipient.call{ value: fee }('');
@@ -269,12 +268,13 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    * @notice anyone can call this to close out the previous round by calling "closePositions" on all actions. 
    * @dev iterrate through each action, close position and withdraw funds
    */
-  function closePositions() public {
+  function closePositions() external {
     actionsInitialized();
     require(state == VaultState.Locked, "O11");
     state = VaultState.Unlocked;
 
-    for (uint256 i = 0; i < actions.length; i = i + 1) {
+    uint256 length = actions.length;
+    for (uint256 i = 0; i < length; i++) {
       // 1. close position. this should revert if any position is not ready to be closed.
       IAction(actions[i]).closePosition();
 
@@ -293,7 +293,8 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    */
   function rollOver(uint256[] calldata _allocationPercentages) external onlyOwner nonReentrant {
     actionsInitialized();
-    require(_allocationPercentages.length == actions.length, 'O12');
+    uint256 allocationPercentagesLength = _allocationPercentages.length;
+    require(allocationPercentagesLength == actions.length, 'O12');
     require(state == VaultState.Unlocked, "O13");
     state = VaultState.Locked;
 
@@ -301,11 +302,11 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
     // keep track of total percentage to make sure we're summing up to 100%
     uint256 sumPercentage = withdrawReserve;
 
-    for (uint256 i = 0; i < _allocationPercentages.length; i = i + 1) {
-      sumPercentage = sumPercentage.add(_allocationPercentages[i]);
+    for (uint256 i = 0; i < allocationPercentagesLength; i++) {
+      sumPercentage = sumPercentage + _allocationPercentages[i];
       require(sumPercentage <= BASE, 'O14');
 
-      uint256 newAmount = totalAsset.mul(_allocationPercentages[i]).div(BASE);
+      uint256 newAmount = totalAsset * _allocationPercentages[i] / BASE;
 
       if (newAmount > 0) IERC20(sdecrvAddress).safeTransfer(actions[i], newAmount);
       IAction(actions[i]).rolloverPosition();
@@ -390,7 +391,7 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
     uint256 shareSupply = totalSupply();
 
     // share amount
-    return shareSupply == 0 ? _amount : _amount.mul(shareSupply).div(_totalAssetAmount);
+    return shareSupply == 0 ? _amount : _amount * shareSupply / _totalAssetAmount;
   }
 
   /**
@@ -398,14 +399,14 @@ contract OpynPerpVault is ERC20, ReentrancyGuard, Ownable {
    */
   function _getWithdrawAmountByShares(uint256 _share) internal view returns (uint256) {
     // withdrawal amount
-    return _share.mul(totalStakedaoAsset()).div(totalSupply());
+    return _share * totalStakedaoAsset() / totalSupply();
   }
 
   /**
    * @dev get amount of fee charged based on total amount of weth withdrawing.
    */
   function _getWithdrawFee(uint256 _withdrawAmount) internal view returns (uint256) {
-    return _withdrawAmount.mul(withdrawalFeePercentage).div(BASE);
+    return _withdrawAmount * withdrawalFeePercentage / BASE;
   }
 
   /**

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.7.2;
+pragma solidity >=0.8.0;
 
-import { SafeMath } from '@openzeppelin/contracts/math/SafeMath.sol';
 
 import { ICurve } from '../interfaces/ICurve.sol';
 import { IOracle } from "../interfaces/IOracle.sol";
@@ -25,7 +24,6 @@ import { IStakeDao } from "../interfaces/IStakeDao.sol";
  * @notice A Pricer contract for a Stakedao lpToken
  */
 contract StakedaoEcrvPricer {
-    using SafeMath for uint256;
 
     /// @notice curve pool
     ICurve public curve;
@@ -96,7 +94,7 @@ contract StakedaoEcrvPricer {
 
         // scale by 1e36 to return price of 1 lpToken in USD, scaled by 1e8
         // assumes underlying (WETH) is 1e18, curve price is 1e18
-        return pricePerShare.mul(_underlyingPrice).mul(curvePrice).div(1e36);
+        return pricePerShare * _underlyingPrice * curvePrice / 1e36;
     }
 
     function getHistoricalPrice(uint80) external pure returns (uint256, uint256) {

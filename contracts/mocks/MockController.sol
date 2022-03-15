@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity >=0.8.0;
 pragma experimental ABIEncoderV2;
 
 import { IPool } from "../interfaces/IPool.sol";
@@ -63,7 +63,8 @@ contract MockController {
 
   function operate(ActionArgs[] memory _actions) external {
     
-    for (uint8 i =0; i < _actions.length ; i = i+1) {
+    uint256 actionsLength = _actions.length;    
+    for (uint8 i =0; i < actionsLength ; i = i+1) {
       ActionArgs memory action = _actions[i];
           
       // mock open vault: set variable
